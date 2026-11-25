@@ -1,0 +1,12 @@
+topic: python-venv
+title: Python — venv, pip, модули, ruff
+chapter: python
+week: 2
+questions:
+  - {id: py-venv-001, type: choice, q: "Зачем нужно виртуальное окружение?", options: ["Чтобы Python работал быстрее", "У каждого проекта свои версии пакетов, ничего не пересекается и не ломает системный Python", "Это обязательно для импорта", "Чтобы не использовать pip"], answer: 1, explain: "Правило: один проект — одно окружение, зависимости только в него."}
+  - {id: py-venv-002, type: choice, q: "Что меняет `source .venv/bin/activate`?", options: ["Удаляет системный Python", "Добавляет `.venv/bin` в начало `PATH` текущего терминала", "Ставит все пакеты", "Создаёт requirements.txt"], answer: 1, explain: "Поэтому `python` и `pip` берутся из окружения. В новом терминале активировать заново."}
+  - {id: py-venv-003, type: choice, q: "Почему `.venv` не кладут в Git и чем его заменяют?", options: ["Он секретный; заменяют паролем", "Он большой и воссоздаваемый; список зависимостей хранит `requirements.txt`", "Git не умеет в папки", "Он нужен только на сервере"], answer: 1, explain: "Строку `.venv/` добавляют в `.gitignore` до `git add .`."}
+  - {id: py-venv-004, type: order, q: "Воспроизведи окружение проекта на новом компьютере", items: ["git clone репозитория", "python3 -m venv .venv", "source .venv/bin/activate", "pip install -r requirements.txt"], explain: "`pip freeze > requirements.txt` записывает версии, `pip install -r` ставит их."}
+  - {id: py-venv-005, type: choice, q: "Чем модуль отличается от пакета?", options: ["Ничем", "Модуль — один файл `.py`, пакет — папка с модулями (обычно с `__init__.py`)", "Пакет — один файл", "Модуль — установленный из PyPI"], answer: 1, explain: "Импортировать можно и то и другое."}
+  - {id: py-venv-006, type: choice, q: "Когда код под `if __name__ == \"__main__\":` не выполняется?", options: ["При запуске `python app.py`", "Когда файл импортируют из другого модуля", "Никогда", "Только в тестах"], answer: 1, explain: "При прямом запуске `__name__` равно `\"__main__\"`, при импорте — имени модуля."}
+  - {id: py-venv-007, type: choice, q: "Чем линтер отличается от форматтера (ruff)?", options: ["Линтер ищет ошибки и нарушения правил (`ruff check`), форматтер приводит код к единому стилю (`ruff format`)", "Это одно и то же", "Линтер запускает код", "Форматтер ставит пакеты"], answer: 0, explain: "`ruff` умеет оба. Привычка: перед коммитом `check` и `format`."}
