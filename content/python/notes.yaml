@@ -1,0 +1,12 @@
+topic: python-notes
+title: Python — заметки и ловушки
+chapter: python
+week: 1
+questions:
+  - {id: py-notes-001, type: choice, q: "Что сделает `zip(a, b)` с последовательностями разной длины?", options: ["Бросит ошибку", "Молча остановится на самой короткой", "Дополнит None", "Вернёт пустой результат"], answer: 1, explain: "В Python 3.10+ есть `zip(a, b, strict=True)`, он бросит ошибку при разной длине."}
+  - {id: py-notes-002, type: choice, q: "Что найдёт `max(d)` для словаря `d`?", options: ["Максимальное значение", "Максимальный ключ", "Ключ с максимальным значением", "Длину"], answer: 1, explain: "По значению: `max(d, key=d.get)`."}
+  - {id: py-notes-003, type: choice, q: "Что вернут `all([])` и `any([])`?", options: ["True и False", "False и False", "True и True", "Ошибку"], answer: 0, explain: "Для пустой последовательности `all` истинно (нет нарушителей), `any` ложно (нет подходящих)."}
+  - {id: py-notes-004, type: choice, q: "Что стоит `s[::-1]` для строки длиной k?", options: ["O(1), это вид", "O(k) по времени и по памяти: срез создаёт копию", "O(log k)", "O(k²)"], answer: 1, explain: "Срезы копируют. `s += c` в цикле тоже копирует строку целиком: строки неизменяемы."}
+  - {id: py-notes-005, type: choice, q: "Как правильно считать частоты в словаре?", options: ["d[x] += 1", "d[x] = d.get(x, 0) + 1", "d.add(x)", "d.append(x)"], answer: 1, explain: "`d[x] += 1` бросит KeyError для нового ключа (если не `defaultdict`/`Counter`)."}
+  - {id: py-notes-006, type: choice, q: "Какой оператор даёт пересечение множеств?", options: ["a | b", "a - b", "a & b", "a ^ b"], answer: 2, explain: "`|` объединение, `-` разность, `^` симметрическая разность. Пересечение в среднем O(min(len a, len b))."}
+  - {id: py-notes-007, type: choice, q: "Чем опасно называть переменную `sum` или `list`?", options: ["Ничем", "Имя затеняет встроенную функцию", "Это синтаксическая ошибка", "Python тормозит"], answer: 1, explain: "После `sum = 0` вызвать `sum(...)` уже нельзя."}
