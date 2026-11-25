@@ -24,6 +24,7 @@ function home() {
   S = null;
   const prog = load(), now = Date.now(), P = q => prog[q.id];
   const bad = ALL.filter(q => P(q) && P(q).last === "bad");
+  const weak = ALL.filter(q => P(q) && P(q).n >= 2 && P(q).ok / P(q).n < 0.6);
   const c = cfg(), d0 = new Date().setHours(0, 0, 0, 0);
   const newToday = ALL.filter(q => P(q) && (P(q).first || 0) >= d0).length;
   const dueQ = shuffle(ALL.filter(q => P(q) && (P(q).due || 0) <= now));
@@ -37,6 +38,8 @@ function home() {
     for (const n of [20, 40]) if (ALL.length > n) h += `<button class="btn" data-n="${n}">${n} вопросов</button>`;
     h += `<button class="btn" data-n="all">Все (${ALL.length})</button>`;
     if (bad.length) h += `<button class="btn warn" data-n="bad">Ошибки (${bad.length})</button>`;
+    if (weak.length) h += `<button class="btn" data-n="weak">Слабые места (${weak.length})</button>`;
+    h += `<button class="btn" data-n="iv">Собеседование (10)</button>`;
     h += `</div>`;
   } else if (TAB === "topics") {
     h += `<h1>Темы</h1>`;
@@ -56,7 +59,7 @@ function home() {
   root.innerHTML = h + tabs();
   root.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { TAB = b.dataset.tab; home(); window.scrollTo(0, 0); });
   root.querySelectorAll("[data-n]").forEach(b => b.onclick = () => { const n = b.dataset.n;
-    start(n === "today" ? today : n === "bad" ? bad : n === "all" ? ALL : shuffle(ALL).slice(0, +n)); });
+    start(n === "today" ? today : n === "bad" ? bad : n === "weak" ? weak : n === "iv" ? shuffle(ALL).slice(0, 10) : n === "all" ? ALL : shuffle(ALL).slice(0, +n), n === "iv"); });
   root.querySelectorAll("[data-t]").forEach(b => b.onclick = () => start(ALL.filter(q => q.topic === b.dataset.t)));
   const on = (id, f) => { const e = document.getElementById(id); if (e) e.onclick = f; };
   on("exp", () => navigator.clipboard.writeText(JSON.stringify(load())).then(() => alert("Прогресс скопирован в буфер обмена"), () => alert("Не удалось скопировать")));
@@ -68,7 +71,7 @@ function home() {
     off.textContent = `Версия данных ${DATA.version}. ` + (navigator.serviceWorker && navigator.serviceWorker.controller && n ? `Офлайн готов: сохранено файлов ${n}` : "Офлайн не готов: закрой и открой приложение при включённой сети"); } catch { off.textContent = "Офлайн недоступен в этом режиме"; } })();
 }
 
-function start(list) { S = {qs: shuffle(list), i: 0, res: []}; question(); }
+function start(list, iv) { S = {qs: shuffle(list), i: 0, res: [], iv}; question(); }
 
 function question() {
   const q = S.qs[S.i];
@@ -77,7 +80,7 @@ function question() {
     <p class="tp">${esc(q.title)}</p><h1 class="q">${md(q.q)}</h1><div id="area"></div><div id="fb"></div>`;
   document.getElementById("quit").onclick = home;
   const area = document.getElementById("area");
-  ({choice, multi, order, card})[q.type](q, area);
+  (S.iv ? recall : {choice, multi, order, card}[q.type])(q, area);
 }
 
 function done(q, ok, extra = "") {
@@ -138,6 +141,18 @@ function order(q, area) {
     const r = document.getElementById("rst"); if (r) r.onclick = () => { picked.length = 0; draw(); };
   };
   draw();
+}
+
+function recall(q, area) {
+  const ans = q.type === "card" ? q.answer : q.type === "choice" ? q.options[q.answer] : q.type === "multi" ? q.answer.map(i => q.options[i]).join("; ") : q.items.join(" → ");
+  let t = 90;
+  area.innerHTML = `<p class="hint" id="tm">90 с: отвечай вслух</p><button class="btn primary" id="show">Показать ответ</button>`;
+  const id = setInterval(() => { const e = document.getElementById("tm"); if (!e) return clearInterval(id); t--; e.textContent = t > 0 ? `${t} с: отвечай вслух` : "Время вышло, но можно ответить"; }, 1000);
+  document.getElementById("show").onclick = () => {
+    clearInterval(id);
+    area.innerHTML = `<div class="fb"><p>${md(ans)}</p></div><div class="modes"><button class="btn" data-k="1">Знал</button><button class="btn warn" data-k="0">Не знал</button></div>`;
+    area.querySelectorAll("[data-k]").forEach(b => b.onclick = () => { area.innerHTML = `<div class="fb"><p>${md(ans)}</p></div>`; done(q, b.dataset.k === "1"); });
+  };
 }
 
 function card(q, area) {
