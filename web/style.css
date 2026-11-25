@@ -26,3 +26,8 @@ button{font:inherit;color:inherit;touch-action:manipulation;-webkit-tap-highligh
 code{font:.92em ui-monospace,Menlo,monospace;background:rgba(127,127,127,.18);padding:.1em .35em;border-radius:5px}
 .seq{padding-left:1.4rem}.seq li{padding:.3rem .5rem;margin:.3rem 0;border:1.5px solid transparent;border-radius:8px}
 .hint{color:var(--mute);margin:.2rem 0 .5rem}
+main{padding-bottom:6rem}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabs button{flex:1;border:0;background:none;padding:.85rem 0;color:var(--mute);cursor:pointer}.tabs .on{color:var(--accent);font-weight:600}
+.topic.col{flex-direction:column;gap:.4rem}.topic .row{display:flex;justify-content:space-between;gap:1rem}.topic small{color:var(--mute)}
+.meter{position:relative;height:6px;background:var(--line);border-radius:3px}.meter i{position:absolute;left:0;top:0;bottom:0;border-radius:3px}.meter .seen{background:rgba(58,75,200,.35)}.meter .mast{background:var(--accent)}

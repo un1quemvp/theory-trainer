@@ -1,0 +1,14 @@
+topic: linux-processes
+title: Linux — процессы, окружение, SSH
+chapter: linux
+week: 2
+questions:
+  - {id: linux-001, type: choice, q: "Чем `SIGTERM` отличается от `SIGKILL` и что применять первым?", options: ["Одно и то же", "SIGTERM (kill PID) просит завершиться, его можно перехватить; SIGKILL (-9) убивает сразу. Сначала SIGTERM", "SIGKILL мягче", "SIGTERM нельзя посылать"], answer: 1, explain: "`kill -9` не даёт программе сохранить данные, поэтому он последний вариант."}
+  - {id: linux-002, type: choice, q: "Чем `NAME=Denis` отличается от `export NAME=Denis`?", options: ["Ничем", "Без export переменная видна только оболочке; с export её получают дочерние процессы", "export сохраняет навсегда", "Без export работает только в root"], answer: 1, explain: "Навсегда — запись в `~/.bashrc`."}
+  - {id: linux-003, type: choice, q: "Что такое `PATH`?", options: ["Путь к домашней папке", "Список папок через `:`, где оболочка ищет команды", "Текущая папка", "Путь к ключу SSH"], answer: 1, explain: "`which python3` покажет, какой файл запустится. Активация venv ставит `.venv/bin` в начало PATH."}
+  - {id: linux-004, type: choice, q: "Переменная, заданная в терминале, пропала в новом. Почему?", options: ["Баг Linux", "Она не записана в `~/.bashrc`", "Нужен sudo", "Терминал очищает память"], answer: 1, explain: "Добавь `export NAME=value` в `~/.bashrc` и выполни `source ~/.bashrc`."}
+  - {id: linux-005, type: choice, q: "Что можно публиковать из пары SSH-ключей?", options: ["Приватный `id_ed25519`", "Публичный `id_ed25519.pub`", "Оба", "Ничего"], answer: 1, explain: "Приватный ключ никуда не отправляют: по сети он не идёт, сервер проверяет подпись."}
+  - {id: linux-006, type: choice, q: "`Permission denied (publickey)` при пуше по SSH. Частая причина?", options: ["Слишком большой файл", "Публичный ключ не добавлен на GitHub или `remote` всё ещё HTTPS/чужой", "Нет интернета", "Нужен `sudo`"], answer: 1, explain: "Проверь `git remote -v` и ключ в Settings → SSH and GPG keys."}
+  - {id: linux-007, type: choice, q: "Что произойдёт с фоновым процессом при закрытии терминала?", options: ["Продолжит работать всегда", "Получит SIGHUP и обычно завершится; `nohup команда &` от этого защищает", "Перейдёт в root", "Станет зомби"], answer: 1, explain: "`команда &` запускает в фоне, `jobs` показывает задачи, `fg` и `bg` переключают."}
+  - {id: linux-008, type: order, q: "Переведи репозиторий с HTTPS на SSH", items: ["ssh-keygen -t ed25519", "cat ~/.ssh/id_ed25519.pub и скопировать", "Добавить ключ на GitHub (Settings → SSH and GPG keys)", "ssh -T git@github.com", "git remote set-url origin git@github.com:ЛОГИН/РЕПО.git"], explain: "Права: `~/.ssh` — 700, приватный ключ — 600."}
+  - {id: linux-009, type: card, q: "Что показывает `echo $?` и что значит 0?", answer: "Код возврата последней команды. 0 — успех, любое другое число — ошибка. На этом построено `cmd1 && cmd2`."}

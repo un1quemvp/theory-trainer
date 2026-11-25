@@ -12,35 +12,53 @@ let DATA, ALL = [], S = null, NEWQ = 0;
 const banner = () => NEWQ > 0 ? `<div class="fb good"><b>Вопросы обновлены:</b> +${NEWQ}</div>` : "";
 const same = (a, b) => a.length === b.length && a.every(x => b.includes(x));
 
+let TAB = "main";
+const tabs = () => `<nav class="tabs">${[["main", "Главная"], ["topics", "Темы"], ["stats", "Статистика"]].map(([k, l]) => `<button data-tab="${k}" class="${TAB === k ? "on" : ""}">${l}</button>`).join("")}</nav>`;
+function streak() {
+  try { const d = JSON.parse(localStorage.getItem("tt:days") || "[]"), t = new Date(); let n = 0;
+    if (!d.includes(t.toLocaleDateString("sv"))) t.setDate(t.getDate() - 1);
+    while (d.includes(t.toLocaleDateString("sv"))) { n++; t.setDate(t.getDate() - 1); } return n; } catch { return 0; }
+}
 function home() {
   S = null;
-  const prog = load();
-  const seen = ALL.filter(q => prog[q.id]).length;
-  const bad = ALL.filter(q => prog[q.id] && prog[q.id].last === "bad");
-  const now = Date.now();
-  const today = [...ALL.filter(q => prog[q.id] && (prog[q.id].due || 0) <= now), ...shuffle(ALL.filter(q => !prog[q.id])).slice(0, 10)];
-  const mast = t => t.questions.filter(q => prog[q.id] && (prog[q.id].box || 1) >= 3).length;
-  const byCh = {};
-  DATA.topics.forEach(t => (byCh[t.chapter] = byCh[t.chapter] || []).push(t));
-  let h = banner() + `<h1>Тренажёр теории</h1><p class="sub">${ALL.length} вопросов · пройдено ${seen} · ошибок ${bad.length}</p><div class="modes">`;
-  if (today.length) h += `<button class="btn primary" data-n="today">Повторение на сегодня (${today.length})</button>`;
-  for (const n of [20, 40]) if (ALL.length > n) h += `<button class="btn" data-n="${n}">${n} вопросов</button>`;
-  h += `<button class="btn" data-n="all">Все (${ALL.length})</button>`;
-  if (bad.length) h += `<button class="btn warn" data-n="bad">Ошибки (${bad.length})</button>`;
-  h += `</div>`;
-  for (const [ch, list] of Object.entries(byCh)) {
-    h += `<h2>${esc(CHAPTERS[ch] || ch)}</h2>`;
-    h += list.map(t => `<button class="topic" data-t="${esc(t.topic)}"><b>${esc(t.title)}</b><span>${mast(t)} / ${t.questions.length}</span></button>`).join("");
+  const prog = load(), now = Date.now(), P = q => prog[q.id];
+  const bad = ALL.filter(q => P(q) && P(q).last === "bad");
+  const today = [...ALL.filter(q => P(q) && (P(q).due || 0) <= now), ...shuffle(ALL.filter(q => !P(q))).slice(0, 10)];
+  const mast = qs => qs.filter(q => P(q) && (P(q).box || 1) >= 3).length;
+  let h = banner();
+  if (TAB === "main") {
+    h += `<h1>Тренажёр теории</h1><p class="sub">${ALL.length} вопросов · пройдено ${ALL.filter(P).length} · ошибок ${bad.length}</p><div class="modes">`;
+    if (today.length) h += `<button class="btn primary" data-n="today">Повторение на сегодня (${today.length})</button>`;
+    for (const n of [20, 40]) if (ALL.length > n) h += `<button class="btn" data-n="${n}">${n} вопросов</button>`;
+    h += `<button class="btn" data-n="all">Все (${ALL.length})</button>`;
+    if (bad.length) h += `<button class="btn warn" data-n="bad">Ошибки (${bad.length})</button>`;
+    h += `</div>`;
+  } else if (TAB === "topics") {
+    h += `<h1>Темы</h1>`;
+    const byCh = {}; DATA.topics.forEach(t => (byCh[t.chapter] = byCh[t.chapter] || []).push(t));
+    for (const [ch, list] of Object.entries(byCh)) {
+      h += `<h2>${esc(CHAPTERS[ch] || ch)}</h2>` + list.map(t => { const qs = ALL.filter(q => q.topic === t.topic), s = qs.filter(P).length, m = mast(qs);
+        return `<button class="topic col" data-t="${esc(t.topic)}"><div class="row"><b>${esc(t.title)}</b><span>${s} / ${qs.length}</span></div><div class="meter"><i class="seen" style="width:${s / qs.length * 100}%"></i><i class="mast" style="width:${m / qs.length * 100}%"></i></div><small>освоено ${m}</small></button>`; }).join("");
+    }
+  } else {
+    const tot = Object.values(prog).reduce((a, r) => [a[0] + r.n, a[1] + r.ok], [0, 0]);
+    const row = (a, b) => `<div class="topic static"><b>${a}</b><span>${b}</span></div>`;
+    h += `<h1>Статистика</h1>` + row("Ответов всего", tot[0]) + row("Верных", (tot[0] ? Math.round(tot[1] / tot[0] * 100) : 0) + "%") + row("Освоено (2 верных подряд)", `${mast(ALL)} / ${ALL.length}`) + row("Дней подряд", streak()) +
+      `<h2>Коробки повторения</h2>` + DAYS.map((d, i) => row(`Коробка ${i + 1} (раз в ${d} дн.)`, ALL.filter(q => P(q) && (P(q).box || 1) === i + 1).length)).join("") +
+      `<h2>Данные</h2><div class="modes"><button class="btn" id="exp">Экспорт</button><button class="btn" id="imp">Импорт</button><button class="btn warn" id="rst">Сбросить</button></div><h2>Офлайн</h2><p class="sub" id="off">Проверяю…</p>`;
   }
-  h += `<h2>Прогресс</h2><div class="modes"><button class="btn" id="exp">Экспорт</button><button class="btn" id="imp">Импорт</button></div>`;
-  root.innerHTML = h;
-  document.getElementById("exp").onclick = () => navigator.clipboard.writeText(JSON.stringify(load())).then(() => alert("Прогресс скопирован в буфер обмена"), () => alert("Не удалось скопировать"));
-  document.getElementById("imp").onclick = () => { const t = prompt("Вставь скопированный прогресс"); if (t) { try { save(JSON.parse(t)); home(); } catch { alert("Не удалось прочитать"); } } };
-  root.querySelectorAll("[data-n]").forEach(b => b.onclick = () => {
-    const n = b.dataset.n;
-    start(n === "today" ? today : n === "bad" ? bad : n === "all" ? ALL : ALL.slice().sort(() => Math.random() - .5).slice(0, +n));
-  });
+  root.innerHTML = h + tabs();
+  root.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { TAB = b.dataset.tab; home(); window.scrollTo(0, 0); });
+  root.querySelectorAll("[data-n]").forEach(b => b.onclick = () => { const n = b.dataset.n;
+    start(n === "today" ? today : n === "bad" ? bad : n === "all" ? ALL : shuffle(ALL).slice(0, +n)); });
   root.querySelectorAll("[data-t]").forEach(b => b.onclick = () => start(ALL.filter(q => q.topic === b.dataset.t)));
+  const on = (id, f) => { const e = document.getElementById(id); if (e) e.onclick = f; };
+  on("exp", () => navigator.clipboard.writeText(JSON.stringify(load())).then(() => alert("Прогресс скопирован в буфер обмена"), () => alert("Не удалось скопировать")));
+  on("imp", () => { const t = prompt("Вставь скопированный прогресс"); if (t) { try { save(JSON.parse(t)); home(); } catch { alert("Не удалось прочитать"); } } });
+  on("rst", () => { if (confirm("Удалить весь прогресс на этом устройстве?")) { try { localStorage.removeItem(KEY); localStorage.removeItem("tt:days"); } catch {} home(); } });
+  const off = document.getElementById("off");
+  if (off) (async () => { try { const ks = await caches.keys(), n = ks.length ? (await (await caches.open(ks[0])).keys()).length : 0;
+    off.textContent = `Версия данных ${DATA.version}. ` + (navigator.serviceWorker && navigator.serviceWorker.controller && n ? `Офлайн готов: сохранено файлов ${n}` : "Офлайн не готов: закрой и открой приложение при включённой сети"); } catch { off.textContent = "Офлайн недоступен в этом режиме"; } })();
 }
 
 function start(list) { S = {qs: shuffle(list), i: 0, res: []}; question(); }
@@ -61,6 +79,7 @@ function done(q, ok, extra = "") {
   const box = ok ? Math.min(5, (r.box || 1) + 1) : 1;
   p[q.id] = {n: r.n + 1, ok: r.ok + (ok ? 1 : 0), last: ok ? "ok" : "bad", ts: Date.now(), box, due: Date.now() + DAYS[box - 1] * 864e5};
   save(p);
+  try { const d = JSON.parse(localStorage.getItem("tt:days") || "[]"), k = new Date().toLocaleDateString("sv"); if (!d.includes(k)) { d.push(k); localStorage.setItem("tt:days", JSON.stringify(d.slice(-400))); } } catch {}
   S.res.push({q, ok});
   const last = S.i === S.qs.length - 1;
   document.getElementById("fb").innerHTML = `<div class="fb ${ok ? "good" : "bad"}"><b>${ok ? "Верно" : "Неверно"}</b>${extra}${q.explain ? `<p>${md(q.explain)}</p>` : ""}</div>
@@ -145,4 +164,4 @@ function results() {
   } catch (e) { root.innerHTML = `<p class="err">Не удалось загрузить вопросы: ${esc(e.message)}</p>`; }
 })();
 
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", {updateViaCache: "none"});
+if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js", {updateViaCache: "none"}));
