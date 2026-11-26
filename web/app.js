@@ -14,7 +14,7 @@ const banner = () => NEWQ > 0 ? `<div class="fb good"><b>Вопросы обно
 const same = (a, b) => a.length === b.length && a.every(x => b.includes(x));
 
 let TAB = "main";
-const tabs = () => `<nav class="tabs">${[["main", "Главная"], ["topics", "Темы"], ["stats", "Профиль"]].map(([k, l]) => `<button data-tab="${k}" class="${TAB === k ? "on" : ""}">${l}</button>`).join("")}</nav>`;
+const tabs = () => `<nav class="tabs" aria-label="Разделы тренажёра">${[["main", "Главная"], ["topics", "Темы"], ["stats", "Профиль"]].map(([k, l]) => `<button data-tab="${k}"${TAB === k ? ' class="on" aria-current="page"' : ""}>${l}</button>`).join("")}</nav>`;
 function streak() {
   try { const d = JSON.parse(localStorage.getItem("tt:days") || "[]"), t = new Date(); let n = 0;
     if (!d.includes(t.toLocaleDateString("sv"))) t.setDate(t.getDate() - 1);
@@ -28,18 +28,43 @@ function home() {
   const c = cfg(), d0 = new Date().setHours(0, 0, 0, 0);
   const newToday = ALL.filter(q => P(q) && (P(q).first || 0) >= d0).length;
   const dueQ = shuffle(ALL.filter(q => P(q) && (P(q).due || 0) <= now));
-  const today = [...(c.due ? dueQ.slice(0, c.due) : dueQ), ...shuffle(ALL.filter(q => !P(q))).slice(0, c.new ? Math.max(0, c.new - newToday) : 1e9)];
+  const reviews = c.due ? dueQ.slice(0, c.due) : dueQ;
+  const fresh = shuffle(ALL.filter(q => !P(q))).slice(0, c.new ? Math.max(0, c.new - newToday) : 1e9);
+  const today = [...reviews, ...fresh];
   const mast = qs => qs.filter(q => P(q) && (P(q).box || 1) >= 3).length;
   let h = banner();
   if (TAB === "main") {
-    const mp = ALL.length ? Math.round(mast(ALL) / ALL.length * 100) : 0;
-    h += `<div class="hero"><div class="ring" style="--p:${mp * 3.6}deg"><b>${mp}%</b></div><div><h1>Тренажёр теории</h1><p class="sub">освоено ${mast(ALL)} из ${ALL.length}<br>серия ${streak()} дн. · ошибок ${bad.length}</p></div></div><div class="modes">`;
-    if (today.length) h += `<button class="btn primary" data-n="today">Повторение на сегодня (${today.length})</button>`;
-    for (const n of [20, 40]) if (ALL.length > n) h += `<button class="btn" data-n="${n}">${n} вопросов</button>`;
-    h += `<button class="btn" data-n="all">Все (${ALL.length})</button>`;
-    if (bad.length) h += `<button class="btn warn" data-n="bad">Ошибки (${bad.length})</button>`;
-    if (weak.length) h += `<button class="btn" data-n="weak">Слабые места (${weak.length})</button>`;
-    h += `<button class="btn" data-n="iv">Собеседование (10)</button>`;
+    const mastered = mast(ALL);
+    const percent = ALL.length ? Math.round(mastered / ALL.length * 100) : 0;
+    const training = (mode, label, detail) =>
+      `<button class="btn home-training" data-n="${mode}"><span>${label}</span>${detail === undefined
+        ? '<span class="training-detail" aria-hidden="true">→</span>'
+        : `<span class="training-detail">${detail}</span>`}</button>`;
+    h += `<div class="home">
+      <h1>Тренажёр теории</h1>
+      ${today.length
+        ? `<button class="btn primary today" data-n="today">
+            <span class="today-title">Повторение на сегодня <span aria-hidden="true">→</span></span>
+            <span class="today-detail">К повторению ${reviews.length} · Новых ${fresh.length}</span>
+          </button>`
+        : `<p class="home-panel today-empty">${ALL.length ? "На сегодня всё" : "Вопросов пока нет"}</p>`}
+      <div class="home-panel home-progress">
+        <div class="home-progress-summary"><span>Освоено <strong>${percent}%</strong></span><span class="training-detail">Серия ${streak()} дн.</span></div>
+        <progress class="home-meter" max="100" value="${percent}" aria-label="Доля освоенных вопросов"></progress>
+        <p class="home-progress-detail">Освоено ${mastered} из ${ALL.length} · Ошибок ${bad.length}</p>
+      </div>`;
+    if (ALL.length) {
+      h += `<section aria-labelledby="training-heading">
+        <h2 id="training-heading">Другие тренировки</h2>
+        <div class="home-modes">`;
+      if (ALL.length >= 10) h += training(10, "10 вопросов");
+      for (const n of [20, 40]) if (ALL.length > n) h += training(n, `${n} вопросов`);
+      h += training("all", "Все вопросы", ALL.length);
+      if (bad.length) h += training("bad", "Ошибки", bad.length);
+      if (weak.length) h += training("weak", "Слабые места", weak.length);
+      h += training("iv", "Собеседование", `${Math.min(ALL.length, 10)} вопросов`);
+      h += `</div></section>`;
+    }
     h += `</div>`;
   } else if (TAB === "topics") {
     h += `<h1>Темы</h1>`;
@@ -71,7 +96,11 @@ function home() {
     off.textContent = `Версия данных ${DATA.version}. ` + (navigator.serviceWorker && navigator.serviceWorker.controller && n ? `Офлайн готов: сохранено файлов ${n}` : "Офлайн не готов: закрой и открой приложение при включённой сети"); } catch { off.textContent = "Офлайн недоступен в этом режиме"; } })();
 }
 
-function start(list, iv) { S = {qs: shuffle(list), i: 0, res: [], iv}; question(); }
+function start(list, iv) {
+  S = {qs: shuffle(list), i: 0, res: [], iv};
+  question();
+  window.scrollTo(0, 0);
+}
 
 function question() {
   const q = S.qs[S.i];
