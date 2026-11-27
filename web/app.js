@@ -3,14 +3,14 @@ const root = document.getElementById("app");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const md = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
 const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-const CHAPTERS = {git: "Git", terminal: "Терминал", python: "Python", linux: "Linux", net: "Сети", http: "HTTP", algo: "Алгоритмы"};
+const CHAPTERS = {git: "Git", terminal: "Терминал", python: "Python", linux: "Linux", net: "Сети", http: "HTTP", algo: "Алгоритмы", practice: "Практика"};
 const KEY = "tt:progress";
 const DAYS = [1, 3, 7, 14, 30];
 const cfg = () => { try { return {new: 10, due: 0, ...JSON.parse(localStorage.getItem("tt:set"))}; } catch { return {new: 10, due: 0}; } };
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
 const save = p => { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch {} };
-let DATA, ALL = [], S = null, NEWQ = 0;
-const banner = () => NEWQ > 0 ? `<div class="fb good"><b>Вопросы обновлены:</b> +${NEWQ}</div>` : "";
+let DATA, ALL = [], S = null, NEWQ = 0, UPDATED = false;
+const banner = () => UPDATED ? `<div class="fb good" role="status"><b>Вопросы обновлены</b>${NEWQ > 0 ? ` · +${NEWQ}` : ""}</div>` : "";
 const same = (a, b) => a.length === b.length && a.every(x => b.includes(x));
 
 let TAB = "main";
@@ -25,6 +25,7 @@ function home() {
   const prog = load(), now = Date.now(), P = q => prog[q.id];
   const bad = ALL.filter(q => P(q) && P(q).last === "bad");
   const weak = ALL.filter(q => P(q) && P(q).n >= 2 && P(q).ok / P(q).n < 0.6);
+  const practice = ALL.filter(q => q.topic === "practice-situations");
   const c = cfg(), d0 = new Date().setHours(0, 0, 0, 0);
   const newToday = ALL.filter(q => P(q) && (P(q).first || 0) >= d0).length;
   const dueQ = shuffle(ALL.filter(q => P(q) && (P(q).due || 0) <= now));
@@ -58,6 +59,7 @@ function home() {
         <h2 id="training-heading">Другие тренировки</h2>
         <div class="home-modes">`;
       if (ALL.length >= 10) h += training(10, "10 вопросов");
+      if (practice.length) h += training("practice", "Практические ситуации", practice.length);
       for (const n of [20, 40]) if (ALL.length > n) h += training(n, `${n} вопросов`);
       h += training("all", "Все вопросы", ALL.length);
       if (bad.length) h += training("bad", "Ошибки", bad.length);
@@ -83,8 +85,11 @@ function home() {
   }
   root.innerHTML = h + tabs();
   root.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { TAB = b.dataset.tab; home(); window.scrollTo(0, 0); });
-  root.querySelectorAll("[data-n]").forEach(b => b.onclick = () => { const n = b.dataset.n;
-    start(n === "today" ? today : n === "bad" ? bad : n === "weak" ? weak : n === "iv" ? shuffle(ALL).slice(0, 10) : n === "all" ? ALL : shuffle(ALL).slice(0, +n), n === "iv"); });
+  const modes = {today, bad, weak, practice, all: ALL};
+  root.querySelectorAll("[data-n]").forEach(b => b.onclick = () => {
+    const n = b.dataset.n, interview = n === "iv";
+    start(modes[n] || shuffle(ALL).slice(0, interview ? 10 : +n), interview);
+  });
   root.querySelectorAll("[data-t]").forEach(b => b.onclick = () => start(ALL.filter(q => q.topic === b.dataset.t)));
   const on = (id, f) => { const e = document.getElementById(id); if (e) e.onclick = f; };
   on("exp", () => navigator.clipboard.writeText(JSON.stringify(load())).then(() => alert("Прогресс скопирован в буфер обмена"), () => alert("Не удалось скопировать")));
@@ -92,24 +97,48 @@ function home() {
   on("rst", () => { if (confirm("Удалить весь прогресс на этом устройстве?")) { try { localStorage.removeItem(KEY); localStorage.removeItem("tt:days"); } catch {} home(); } });
   root.querySelectorAll("[data-set]").forEach(b => b.onclick = () => { const c = cfg(); c[b.dataset.set] = +b.dataset.v; try { localStorage.setItem("tt:set", JSON.stringify(c)); } catch {} home(); });
   const off = document.getElementById("off");
-  if (off) (async () => { try { const ks = await caches.keys(), n = ks.length ? (await (await caches.open(ks[0])).keys()).length : 0;
-    off.textContent = `Версия данных ${DATA.version}. ` + (navigator.serviceWorker && navigator.serviceWorker.controller && n ? `Офлайн готов: сохранено файлов ${n}` : "Офлайн не готов: закрой и открой приложение при включённой сети"); } catch { off.textContent = "Офлайн недоступен в этом режиме"; } })();
+  if (off) (async () => {
+    try {
+      const cache = (await caches.keys()).find(name => name.startsWith("tt-shell-"));
+      const ready = navigator.serviceWorker?.controller && cache &&
+        await (await caches.open(cache)).match("data.json");
+      off.textContent = `Версия данных ${DATA.version}. ` +
+        (ready ? "Вопросы доступны офлайн" : "Для работы офлайн открой приложение при включённой сети");
+    } catch { off.textContent = "Офлайн недоступен в этом режиме"; }
+  })();
 }
 
 function start(list, iv) {
   S = {qs: shuffle(list), i: 0, res: [], iv};
   question();
-  window.scrollTo(0, 0);
+}
+
+function questionContext(q) {
+  return q.problems.map(problem => `<section class="problem-context">
+    <h2>${esc(problem.title)}</h2>
+    <p>${md(problem.statement)}</p>
+    <p class="problem-example">${md(problem.example)}</p>
+  </section>`).join("") +
+    (q.context ? `<p class="situation">${md(q.context)}</p>` : "") +
+    (q.code ? `<pre class="situation-code"><code>${esc(q.code)}</code></pre>` : "");
+}
+
+function solutionReview(q) {
+  if (!q.problems.length) return "";
+  return `<div class="solution-review"><strong>Сравнение подходов</strong>
+    ${q.problems.map(problem => `<p>${q.problems.length > 1 ? `<b>${esc(problem.title)}</b> — ` : ""}${md(problem.review)}</p>`).join("")}
+  </div>`;
 }
 
 function question() {
   const q = S.qs[S.i];
   root.innerHTML = `<div class="bar"><button class="link" id="quit">← Выйти</button><span>${S.i + 1} / ${S.qs.length}</span></div>
     <div class="prog"><i style="width:${S.i / S.qs.length * 100}%"></i></div>
-    <p class="tp">${esc(q.title)}</p><h1 class="q">${md(q.q)}</h1><div id="area"></div><div id="fb"></div>`;
+    <p class="tp">${esc(q.title)}</p>${questionContext(q)}<h1 class="q">${md(q.q)}</h1><div id="area"></div><div id="fb"></div>`;
   document.getElementById("quit").onclick = home;
   const area = document.getElementById("area");
   (S.iv ? recall : {choice, multi, order, card}[q.type])(q, area);
+  window.scrollTo(0, 0);
 }
 
 function done(q, ok, extra = "") {
@@ -121,10 +150,10 @@ function done(q, ok, extra = "") {
   try { const d = JSON.parse(localStorage.getItem("tt:days") || "[]"), k = new Date().toLocaleDateString("sv"); if (!d.includes(k)) { d.push(k); localStorage.setItem("tt:days", JSON.stringify(d.slice(-400))); } } catch {}
   S.res.push({q, ok});
   const last = S.i === S.qs.length - 1;
-  document.getElementById("fb").innerHTML = `<div class="fb ${ok ? "good" : "bad"}"><b>${ok ? "Верно" : "Неверно"}</b>${extra}${q.explain ? `<p>${md(q.explain)}</p>` : ""}</div>
+  document.getElementById("fb").innerHTML = `<div class="fb ${ok ? "good" : "bad"}"><b>${ok ? "Верно" : "Неверно"}</b>${extra}${q.explain ? `<p>${md(q.explain)}</p>` : ""}${solutionReview(q)}</div>
     <button class="btn primary" id="next">${last ? "Итоги" : "Дальше"}</button>`;
   document.getElementById("next").onclick = () => { if (last) results(); else { S.i++; question(); } };
-  document.getElementById("next").scrollIntoView({block: "nearest"});
+  document.querySelector("#fb .fb").scrollIntoView({block: "start"});
 }
 
 function choice(q, area) {
@@ -198,21 +227,63 @@ function results() {
   S.res.forEach(r => { const t = byT[r.q.title] = byT[r.q.title] || [0, 0]; t[1]++; if (r.ok) t[0]++; });
   root.innerHTML = `<h1>${ok} из ${n}</h1><p class="sub">${Math.round(ok / n * 100)}% верно</p>
     ${Object.entries(byT).map(([t, [a, b]]) => `<div class="topic static"><b>${esc(t)}</b><span>${a} / ${b}</span></div>`).join("")}
-    ${bad.length ? `<h2>Ошибки</h2>` + bad.map(r => `<div class="fb bad"><b>${md(r.q.q)}</b>${r.q.explain ? `<p>${md(r.q.explain)}</p>` : r.q.answer ? `<p>${md(r.q.answer)}</p>` : ""}</div>`).join("") : ""}
+    ${bad.length ? `<h2>Ошибки</h2>` + bad.map(({q}) => {
+      const context = questionContext(q);
+      return `<div class="fb bad"><b>${md(q.q)}</b>
+        ${context ? `<details class="review-context"><summary>Контекст вопроса</summary>${context}</details>` : ""}
+        ${q.explain ? `<p>${md(q.explain)}</p>` : q.answer ? `<p>${md(q.answer)}</p>` : ""}
+        ${solutionReview(q)}</div>`;
+    }).join("") : ""}
     <div class="modes">${bad.length ? `<button class="btn warn" id="again">Повторить ошибки</button>` : ""}<button class="btn primary" id="home">На главную</button></div>`;
   document.getElementById("home").onclick = home;
   const a = document.getElementById("again"); if (a) a.onclick = () => start(bad.map(r => r.q));
+  window.scrollTo(0, 0);
+}
+
+function setData(data) {
+  if (DATA?.version === data.version) return;
+  const alreadyLoaded = !!DATA;
+  const questions = data.topics.flatMap(topic => topic.questions.map(q => ({
+    ...q, topic: topic.topic, title: topic.title,
+    problems: (q.leetcode || []).map(number => data.problems?.[number]).filter(Boolean)
+  })));
+  DATA = data;
+  ALL = questions;
+  try {
+    const prev = +localStorage.getItem("tt:count") || 0;
+    const version = localStorage.getItem("tt:version");
+    NEWQ = prev ? Math.max(0, ALL.length - prev) : 0;
+    UPDATED = alreadyLoaded || NEWQ > 0 || (version !== null && version !== data.version);
+    localStorage.setItem("tt:count", ALL.length);
+    localStorage.setItem("tt:version", data.version);
+  } catch {
+    UPDATED = alreadyLoaded;
+  }
+  if (!S) home();
+}
+
+if ("serviceWorker" in navigator) {
+  const worker = navigator.serviceWorker;
+  const refreshQuestions = () => worker.controller?.postMessage("refresh-questions");
+  worker.addEventListener("message", event => {
+    if (event.source === worker.controller && event.data?.type === "questions-updated") {
+      setData(event.data.data);
+    }
+  });
+  addEventListener("online", refreshQuestions);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshQuestions();
+  });
+  addEventListener("load", () => worker.register("sw.js", {updateViaCache: "none"}).catch(() => {}));
 }
 
 (async function () {
   try {
-    DATA = await (await fetch("data.json", {cache: "no-cache"})).json();
-    DATA.topics.forEach(t => t.questions.forEach(q => ALL.push({...q, topic: t.topic, title: t.title})));
-    const prev = +localStorage.getItem("tt:count") || 0;
-    NEWQ = prev && ALL.length > prev ? ALL.length - prev : 0;
-    try { localStorage.setItem("tt:count", ALL.length); } catch {}
-    home();
-  } catch (e) { root.innerHTML = `<p class="err">Не удалось загрузить вопросы: ${esc(e.message)}</p>`; }
+    const response = await fetch("data.json", {cache: "no-cache"});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (!DATA) setData(data);
+  } catch (e) {
+    if (!DATA) root.innerHTML = `<p class="err">Не удалось загрузить вопросы: ${esc(e.message)}</p>`;
+  }
 })();
-
-if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js", {updateViaCache: "none"}));

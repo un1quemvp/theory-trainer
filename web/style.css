@@ -86,3 +86,23 @@ main{padding-bottom:6rem}
 .home-training{min-height:44px;padding:.55rem 1rem;text-align:left}
 .home .training-detail{flex-shrink:0}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.problem-context,.situation-code{
+  margin:.6rem 0 .8rem;
+  padding:.65rem .8rem;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--card);
+  overflow-wrap:anywhere;
+}
+.problem-context h2{margin:0 0 .3rem;color:var(--ink)}
+.problem-context p{margin:.3rem 0}
+.problem-example{color:var(--mute)}
+.situation{margin:.6rem 0 .75rem}
+.situation-code{white-space:pre-wrap}
+.situation-code code{background:none;padding:0}
+#fb .fb{scroll-margin-top:.75rem}
+.solution-review{margin-top:.7rem;padding-top:.65rem;border-top:1px solid var(--line)}
+.review-context{margin-top:.4rem}
+.review-context summary{color:var(--accent);cursor:pointer}
+.fb + .home{margin-top:.8rem}

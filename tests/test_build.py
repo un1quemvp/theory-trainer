@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import yaml
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from build import validate_topic, load_all
 
@@ -37,3 +38,17 @@ def test_missing_explain():
 def test_real_content_is_valid_and_ids_unique():
     topics, errs = load_all(Path(__file__).parent.parent / "content")
     assert errs == [] and topics
+
+def test_empty_context_and_invalid_problem_reference():
+    errors = validate_topic(topic(choice(context=" ", leetcode=["1"])), "f")
+    assert any("'context' must be non-empty" in error for error in errors)
+    assert any("'leetcode' must be a non-empty list" in error for error in errors)
+
+def test_problem_references_extend_across_topics(tmp_path):
+    catalog = topic(choice(id="lc-question", leetcode=[1]))
+    catalog["problems"] = {1: dict(title="Two Sum", statement="Condition", example="Example", review="Review")}
+    other = topic(choice(leetcode=[1, 99]))
+    (tmp_path / "catalog.yaml").write_text(yaml.safe_dump(catalog), encoding="utf-8")
+    (tmp_path / "other.yaml").write_text(yaml.safe_dump(other), encoding="utf-8")
+    _, errors = load_all(tmp_path)
+    assert errors == ["other.yaml (a-1): unknown LeetCode problem 99"]
